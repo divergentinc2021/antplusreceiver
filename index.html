@@ -64,6 +64,39 @@
             margin-bottom: 10px;
         }
 
+        .permission-panel {
+            background: rgba(255,255,255,0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .permission-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 8px;
+            background: #f8f9fa;
+        }
+
+        .permission-granted {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+        }
+
+        .permission-denied {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+        }
+
+        .permission-unknown {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+        }
+
         .connection-panel {
             background: white;
             border-radius: 15px;
@@ -286,61 +319,35 @@
             background: linear-gradient(45deg, #e74c3c, #c0392b);
         }
 
-        .wahoo-controls {
-            background: #f8f9fa;
-            border-radius: 10px;
+        .btn-permission {
+            background: linear-gradient(45deg, #f39c12, #d68910);
+        }
+
+        .warning-message {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            border-radius: 8px;
             padding: 15px;
-            margin-top: 15px;
+            margin: 15px 0;
+            color: #856404;
         }
 
-        .wahoo-device-list {
-            max-height: 200px;
-            overflow-y: auto;
-            border: 1px solid #dee2e6;
-            border-radius: 5px;
-            background: white;
+        .error-message {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #721c24;
         }
 
-        .wahoo-device {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px;
-            border-bottom: 1px solid #eee;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .wahoo-device:hover {
-            background: #f8f9fa;
-        }
-
-        .wahoo-device:last-child {
-            border-bottom: none;
-        }
-
-        .device-info {
-            flex: 1;
-        }
-
-        .device-name {
-            font-weight: 500;
-            color: #2c3e50;
-        }
-
-        .device-details {
-            font-size: 0.8rem;
-            color: #6c757d;
-        }
-
-        .connect-btn {
-            background: #28a745;
-            color: white;
-            border: none;
-            padding: 5px 10px;
-            border-radius: 3px;
-            cursor: pointer;
-            font-size: 0.8rem;
+        .success-message {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+            color: #155724;
         }
 
         .log-section {
@@ -376,6 +383,27 @@
         .zone-3 { background: #ffeaa7; color: #fdcb6e; }
         .zone-4 { background: #fab1a0; color: #e17055; }
         .zone-5 { background: #fd79a8; color: #e84393; }
+
+        .android-instructions {
+            background: #e3f2fd;
+            border: 1px solid #90caf9;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 15px 0;
+        }
+
+        .android-instructions h4 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .android-instructions ul {
+            margin-left: 20px;
+        }
+
+        .android-instructions li {
+            margin-bottom: 5px;
+        }
     </style>
 </head>
 <body>
@@ -390,14 +418,74 @@
             <div id="platform-capabilities">Checking connection capabilities...</div>
         </div>
 
+        <!-- Android-specific instructions -->
+        <div id="android-instructions" class="android-instructions" style="display: none;">
+            <h4>📱 Android Setup Instructions</h4>
+            <p><strong>Important:</strong> This page must be served over HTTPS for Bluetooth to work on Android.</p>
+            <ul>
+                <li>Open Chrome browser (other browsers may not support Web Bluetooth)</li>
+                <li>Enable "Experimental Web Platform features" in chrome://flags</li>
+                <li>Grant location permission when prompted (required for Bluetooth scanning)</li>
+                <li>Make sure Bluetooth is enabled in Android settings</li>
+                <li>Keep your ANT+ devices in pairing mode</li>
+            </ul>
+        </div>
+
+        <!-- Permission Status Panel -->
+        <div class="permission-panel">
+            <h3>🔐 Permissions & Requirements</h3>
+            
+            <div class="permission-item" id="https-status">
+                <div>
+                    <strong>🔒 HTTPS Connection</strong>
+                    <div style="font-size: 0.8rem; color: #666;">Required for Web Bluetooth on mobile</div>
+                </div>
+                <span id="https-indicator">❓</span>
+            </div>
+
+            <div class="permission-item" id="bluetooth-api-status">
+                <div>
+                    <strong>📶 Web Bluetooth API</strong>
+                    <div style="font-size: 0.8rem; color: #666;">Browser support for Bluetooth devices</div>
+                </div>
+                <span id="bluetooth-api-indicator">❓</span>
+            </div>
+
+            <div class="permission-item" id="location-status" style="display: none;">
+                <div>
+                    <strong>📍 Location Permission</strong>
+                    <div style="font-size: 0.8rem; color: #666;">Required for Bluetooth scanning on Android</div>
+                </div>
+                <div>
+                    <span id="location-indicator">❓</span>
+                    <button class="btn btn-permission" id="request-location-btn" onclick="requestLocationPermission()" style="display: none; margin-left: 10px; width: auto; padding: 5px 10px;">Grant</button>
+                </div>
+            </div>
+
+            <div class="permission-item" id="bluetooth-status">
+                <div>
+                    <strong>🔵 Bluetooth Device Access</strong>
+                    <div style="font-size: 0.8rem; color: #666;">Permission to connect to Bluetooth devices</div>
+                </div>
+                <span id="bluetooth-indicator">❓</span>
+            </div>
+        </div>
+
         <div class="connection-panel">
             <h3>🔗 Connection Methods</h3>
+            
+            <!-- Warning for USB on Android -->
+            <div id="usb-android-warning" class="warning-message" style="display: none;">
+                <strong>⚠️ USB ANT+ Not Available on Android</strong><br>
+                Android devices cannot access USB ANT+ sticks through web browsers. Use Bluetooth ANT+ devices instead.
+            </div>
+
             <div class="connection-options">
                 <!-- USB ANT+ Method -->
                 <div class="connection-method" id="usb-method">
                     <div class="method-icon">🔌</div>
                     <div class="method-title">USB ANT+ Stick</div>
-                    <div class="method-description">Direct USB connection (Windows/Mac/Linux)</div>
+                    <div class="method-description">Direct USB connection (Windows/Mac/Linux only)</div>
                     <button class="btn" id="usb-connect-btn" onclick="connectUSB()" disabled>Connect USB</button>
                 </div>
 
@@ -405,21 +493,15 @@
                 <div class="connection-method" id="bluetooth-method">
                     <div class="method-icon">📱</div>
                     <div class="method-title">Bluetooth ANT+</div>
-                    <div class="method-description">Bluetooth Low Energy (Android/iOS/Modern browsers)</div>
+                    <div class="method-description">Bluetooth Low Energy (All platforms)</div>
                     <button class="btn" id="bluetooth-connect-btn" onclick="connectBluetooth()" disabled>Scan Bluetooth</button>
                 </div>
             </div>
 
-            <!-- Wahoo Trainer Specific Controls -->
-            <div class="wahoo-controls" id="wahoo-controls" style="display: none;">
-                <h4>🚴 Wahoo Trainer Connection</h4>
-                <p>Connect directly to your Wahoo trainer via Bluetooth:</p>
-                <button class="btn btn-scan" onclick="scanWahooTrainers()">Scan for Wahoo Trainers</button>
-                <div class="wahoo-device-list" id="wahoo-device-list" style="display: none;">
-                    <div style="padding: 20px; text-align: center; color: #666;">
-                        Scanning for Wahoo trainers...
-                    </div>
-                </div>
+            <!-- Specific device scanning buttons -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-scan" id="scan-hrm-btn" onclick="scanHeartRateMonitors()" disabled>Scan Heart Rate</button>
+                <button class="btn btn-scan" id="scan-trainer-btn" onclick="scanTrainers()" disabled>Scan Trainers</button>
             </div>
 
             <div id="connection-status" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;">
@@ -527,8 +609,14 @@
             trainer: { distance: 0, startTime: null, maxPower: 0 },
             hrm: { avgHR: 0, maxHR: 0, hrHistory: [] }
         };
+        let permissionStatus = {
+            https: false,
+            webBluetooth: false,
+            location: 'prompt',
+            bluetooth: 'prompt'
+        };
 
-        // Platform detection
+        // Platform detection with Android-specific handling
         function detectPlatform() {
             const userAgent = navigator.userAgent.toLowerCase();
             const isMobile = /android|iphone|ipad|ipod|blackberry|iemobile|opera mini/.test(userAgent);
@@ -555,7 +643,14 @@
                 hasWebUSB: 'usb' in navigator
             };
 
+            // Show Android-specific instructions
+            if (isAndroid) {
+                document.getElementById('android-instructions').style.display = 'block';
+                document.getElementById('usb-android-warning').style.display = 'block';
+            }
+
             updatePlatformDisplay();
+            checkPermissions();
             updateConnectionMethods();
         }
 
@@ -571,11 +666,72 @@
             if (platform.hasWebUSB) capabilities.push('WebUSB');
             
             if (capabilities.length > 0) {
-                capabilitiesElement.textContent = `✅ Available: ${capabilities.join(', ')}`;
+                capabilitiesElement.textContent = `✅ Available APIs: ${capabilities.join(', ')}`;
                 capabilitiesElement.style.color = '#27ae60';
             } else {
                 capabilitiesElement.textContent = '❌ Limited connectivity options available';
                 capabilitiesElement.style.color = '#e74c3c';
+            }
+        }
+
+        // Permission checking and requesting
+        async function checkPermissions() {
+            // Check HTTPS
+            permissionStatus.https = location.protocol === 'https:' || location.hostname === 'localhost';
+            updatePermissionDisplay('https-status', 'https-indicator', permissionStatus.https);
+
+            // Check Web Bluetooth API
+            permissionStatus.webBluetooth = 'bluetooth' in navigator;
+            updatePermissionDisplay('bluetooth-api-status', 'bluetooth-api-indicator', permissionStatus.webBluetooth);
+
+            // Check location permission (required for Bluetooth on Android)
+            if (platform.isAndroid && 'permissions' in navigator) {
+                document.getElementById('location-status').style.display = 'flex';
+                try {
+                    const result = await navigator.permissions.query({name: 'geolocation'});
+                    permissionStatus.location = result.state;
+                    updatePermissionDisplay('location-status', 'location-indicator', result.state === 'granted');
+                    
+                    if (result.state === 'prompt') {
+                        document.getElementById('request-location-btn').style.display = 'inline-block';
+                    }
+                } catch (error) {
+                    log('⚠️ Could not check location permission status');
+                    permissionStatus.location = 'unknown';
+                    updatePermissionDisplay('location-status', 'location-indicator', null);
+                }
+            }
+
+            updateConnectionMethods();
+        }
+
+        function updatePermissionDisplay(itemId, indicatorId, granted) {
+            const item = document.getElementById(itemId);
+            const indicator = document.getElementById(indicatorId);
+            
+            if (granted === true) {
+                item.className = 'permission-item permission-granted';
+                indicator.textContent = '✅';
+            } else if (granted === false) {
+                item.className = 'permission-item permission-denied';
+                indicator.textContent = '❌';
+            } else {
+                item.className = 'permission-item permission-unknown';
+                indicator.textContent = '❓';
+            }
+        }
+
+        async function requestLocationPermission() {
+            try {
+                await navigator.geolocation.getCurrentPosition(() => {}, () => {});
+                const result = await navigator.permissions.query({name: 'geolocation'});
+                permissionStatus.location = result.state;
+                updatePermissionDisplay('location-status', 'location-indicator', result.state === 'granted');
+                document.getElementById('request-location-btn').style.display = 'none';
+                updateConnectionMethods();
+                log('✅ Location permission granted');
+            } catch (error) {
+                log(`❌ Location permission denied: ${error.message}`);
             }
         }
 
@@ -584,8 +740,10 @@
             const bluetoothMethod = document.getElementById('bluetooth-method');
             const usbBtn = document.getElementById('usb-connect-btn');
             const bluetoothBtn = document.getElementById('bluetooth-connect-btn');
+            const scanHrmBtn = document.getElementById('scan-hrm-btn');
+            const scanTrainerBtn = document.getElementById('scan-trainer-btn');
             
-            // USB ANT+ Method
+            // USB ANT+ Method (not available on Android)
             if (platform.hasWebSerial && !platform.isMobile) {
                 usbMethod.classList.add('available');
                 usbBtn.disabled = false;
@@ -593,7 +751,9 @@
             } else {
                 usbMethod.classList.add('unavailable');
                 usbBtn.disabled = true;
-                if (platform.isMobile) {
+                if (platform.isAndroid) {
+                    log('ℹ️ USB ANT+ not supported on Android');
+                } else if (platform.isMobile) {
                     log('ℹ️ USB ANT+ not available on mobile devices');
                 } else {
                     log('❌ Web Serial API not supported in this browser');
@@ -601,19 +761,35 @@
             }
             
             // Bluetooth Method
-            if (platform.hasWebBluetooth) {
+            const bluetoothAvailable = platform.hasWebBluetooth && 
+                                       permissionStatus.https && 
+                                       (!platform.isAndroid || permissionStatus.location === 'granted');
+            
+            if (bluetoothAvailable) {
                 bluetoothMethod.classList.add('available');
                 bluetoothBtn.disabled = false;
-                document.getElementById('wahoo-controls').style.display = 'block';
+                scanHrmBtn.disabled = false;
+                scanTrainerBtn.disabled = false;
                 log('✅ Bluetooth ANT+ connection available');
             } else {
                 bluetoothMethod.classList.add('unavailable');
                 bluetoothBtn.disabled = true;
-                log('❌ Web Bluetooth API not supported');
+                scanHrmBtn.disabled = true;
+                scanTrainerBtn.disabled = true;
+                
+                if (!platform.hasWebBluetooth) {
+                    log('❌ Web Bluetooth API not supported');
+                } else if (!permissionStatus.https) {
+                    log('❌ HTTPS required for Bluetooth on mobile');
+                } else if (platform.isAndroid && permissionStatus.location !== 'granted') {
+                    log('❌ Location permission required for Bluetooth on Android');
+                }
             }
+
+            updatePermissionDisplay('bluetooth-status', 'bluetooth-indicator', bluetoothAvailable);
         }
 
-        // USB Connection (Desktop)
+        // USB Connection (Desktop only)
         async function connectUSB() {
             if (!platform.hasWebSerial) {
                 alert('Web Serial API not supported on this platform');
@@ -660,31 +836,42 @@
             }
         }
 
-        // Bluetooth Connection (Mobile/Cross-platform)
+        // Bluetooth Connection with Android-specific handling
         async function connectBluetooth() {
             if (!platform.hasWebBluetooth) {
                 alert('Web Bluetooth API not supported on this platform');
                 return;
             }
 
+            if (platform.isAndroid && permissionStatus.location !== 'granted') {
+                alert('Location permission is required for Bluetooth scanning on Android. Please grant location permission first.');
+                return;
+            }
+
             try {
-                log('🔍 Scanning for Bluetooth devices...');
+                log('🔍 Scanning for Bluetooth ANT+ devices...');
                 
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [
                         { services: ['heart_rate'] },
                         { services: ['cycling_power'] },
                         { services: ['cycling_speed_and_cadence'] },
-                        { services: ['fitness_equipment'] }
+                        { services: ['fitness_equipment'] },
+                        { namePrefix: 'KICKR' },
+                        { namePrefix: 'SNAP' },
+                        { namePrefix: 'Wahoo' },
+                        { namePrefix: 'Garmin' },
+                        { namePrefix: 'Polar' }
                     ],
                     optionalServices: [
                         'device_information',
                         'battery_service',
-                        'generic_access'
+                        'generic_access',
+                        '6e40fec1-b5a3-f393-e0a9-e50e24dcca9e' // Wahoo custom service
                     ]
                 });
 
-                log(`📱 Found device: ${device.name || 'Unknown'}`);
+                log(`📱 Found device: ${device.name || 'Unknown Device'}`);
                 
                 const server = await device.gatt.connect();
                 
@@ -701,7 +888,114 @@
                 
             } catch (error) {
                 log(`❌ Bluetooth connection failed: ${error.message}`);
-                updateConnectionStatus('Bluetooth connection failed', 'error');
+                if (error.message.includes('User cancelled')) {
+                    updateConnectionStatus('Connection cancelled by user', 'warning');
+                } else {
+                    updateConnectionStatus('Bluetooth connection failed', 'error');
+                }
+            }
+        }
+
+        // Specific device scanning functions
+        async function scanHeartRateMonitors() {
+            if (!checkBluetoothRequirements()) return;
+
+            try {
+                log('🔍 Scanning specifically for Heart Rate Monitors...');
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { services: ['heart_rate'] },
+                        { namePrefix: 'Polar' },
+                        { namePrefix: 'Garmin' },
+                        { namePrefix: 'Wahoo' }
+                    ],
+                    optionalServices: ['device_information', 'battery_service']
+                });
+
+                await connectToDevice(device, 'Heart Rate Monitor');
+                
+            } catch (error) {
+                handleBluetoothError(error, 'Heart Rate Monitor');
+            }
+        }
+
+        async function scanTrainers() {
+            if (!checkBluetoothRequirements()) return;
+
+            try {
+                log('🔍 Scanning specifically for Smart Trainers...');
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { services: ['fitness_equipment'] },
+                        { services: ['cycling_power'] },
+                        { namePrefix: 'KICKR' },
+                        { namePrefix: 'SNAP' },
+                        { namePrefix: 'Wahoo' },
+                        { namePrefix: 'Tacx' },
+                        { namePrefix: 'Elite' }
+                    ],
+                    optionalServices: [
+                        'fitness_equipment',
+                        'cycling_power',
+                        'cycling_speed_and_cadence',
+                        'device_information',
+                        '6e40fec1-b5a3-f393-e0a9-e50e24dcca9e'
+                    ]
+                });
+
+                await connectToDevice(device, 'Smart Trainer');
+                
+            } catch (error) {
+                handleBluetoothError(error, 'Smart Trainer');
+            }
+        }
+
+        function checkBluetoothRequirements() {
+            if (!platform.hasWebBluetooth) {
+                alert('Web Bluetooth API not supported on this platform');
+                return false;
+            }
+
+            if (platform.isAndroid && permissionStatus.location !== 'granted') {
+                alert('Location permission is required for Bluetooth scanning on Android. Please grant location permission first.');
+                return false;
+            }
+
+            if (!permissionStatus.https) {
+                alert('HTTPS connection is required for Bluetooth on mobile devices');
+                return false;
+            }
+
+            return true;
+        }
+
+        async function connectToDevice(device, deviceType) {
+            log(`📱 Found ${deviceType}: ${device.name || 'Unknown'}`);
+            
+            const server = await device.gatt.connect();
+            
+            currentConnection = {
+                type: 'bluetooth',
+                device: device,
+                server: server,
+                deviceType: deviceType
+            };
+            
+            updateConnectionStatus(`Connected to ${device.name || deviceType}`, 'success');
+            await startBluetoothMonitoring();
+        }
+
+        function handleBluetoothError(error, deviceType) {
+            log(`❌ ${deviceType} connection failed: ${error.message}`);
+            
+            if (error.message.includes('User cancelled')) {
+                updateConnectionStatus(`${deviceType} scan cancelled`, 'warning');
+            } else if (error.message.includes('not found')) {
+                updateConnectionStatus(`No ${deviceType} devices found`, 'warning');
+            } else {
+                updateConnectionStatus(`${deviceType} connection failed`, 'error');
             }
         }
 
@@ -733,6 +1027,17 @@
                     log('ℹ️ Cycling Power service not available');
                 }
                 
+                // Monitor Fitness Equipment (for trainers)
+                try {
+                    const ftmsService = await server.getPrimaryService('fitness_equipment');
+                    const ftmsCharacteristic = await ftmsService.getCharacteristic('indoor_bike_data');
+                    await ftmsCharacteristic.startNotifications();
+                    ftmsCharacteristic.addEventListener('characteristicvaluechanged', handleTrainerData);
+                    log('🚴 Trainer data monitoring started');
+                } catch (e) {
+                    log('ℹ️ Fitness Equipment service not available');
+                }
+                
                 // Monitor Speed/Cadence
                 try {
                     const cscService = await server.getPrimaryService('cycling_speed_and_cadence');
@@ -749,223 +1054,140 @@
             }
         }
 
-        // Wahoo Trainer Specific Connection
-        async function scanWahooTrainers() {
-            if (!platform.hasWebBluetooth) {
-                alert('Bluetooth not supported on this platform');
-                return;
-            }
-
-            try {
-                log('🔍 Scanning specifically for Wahoo trainers...');
-                
-                const device = await navigator.bluetooth.requestDevice({
-                    filters: [
-                        { namePrefix: 'KICKR' },
-                        { namePrefix: 'SNAP' },
-                        { namePrefix: 'Wahoo' },
-                        { services: ['fitness_equipment'] },
-                        { services: ['cycling_power'] }
-                    ],
-                    optionalServices: [
-                        'fitness_equipment',
-                        'cycling_power',
-                        'cycling_speed_and_cadence',
-                        'device_information',
-                        '6e40fec1-b5a3-f393-e0a9-e50e24dcca9e' // Wahoo custom service
-                    ]
-                });
-
-                log(`🚴 Found Wahoo trainer: ${device.name}`);
-                
-                const server = await device.gatt.connect();
-                
-                currentConnection = {
-                    type: 'wahoo',
-                    device: device,
-                    server: server
-                };
-                
-                updateConnectionStatus(`Connected to ${device.name}`, 'success');
-                
-                // Start Wahoo-specific monitoring
-                await startWahooMonitoring();
-                
-            } catch (error) {
-                log(`❌ Wahoo trainer connection failed: ${error.message}`);
-                updateConnectionStatus('Wahoo connection failed', 'error');
-            }
-        }
-
-        async function startWahooMonitoring() {
-            if (!currentConnection || currentConnection.type !== 'wahoo') return;
-            
-            try {
-                const server = currentConnection.server;
-                
-                // Wahoo Fitness Equipment Service
-                try {
-                    const ftmsService = await server.getPrimaryService('fitness_equipment');
-                    const ftmsCharacteristic = await ftmsService.getCharacteristic('indoor_bike_data');
-                    await ftmsCharacteristic.startNotifications();
-                    ftmsCharacteristic.addEventListener('characteristicvaluechanged', handleWahooTrainerData);
-                    log('🚴 Wahoo trainer data monitoring started');
-                } catch (e) {
-                    log('⚠️ Wahoo FTMS service not available, trying power service');
-                }
-                
-                // Fallback to Power Service
-                try {
-                    const powerService = await server.getPrimaryService('cycling_power');
-                    const powerCharacteristic = await powerService.getCharacteristic('cycling_power_measurement');
-                    await powerCharacteristic.startNotifications();
-                    powerCharacteristic.addEventListener('characteristicvaluechanged', handlePowerData);
-                    log('⚡ Wahoo power data monitoring started');
-                } catch (e) {
-                    log('ℹ️ Power service also not available');
-                }
-                
-            } catch (error) {
-                log(`❌ Wahoo monitoring setup failed: ${error.message}`);
-            }
-        }
-
-        // Data Handlers
+        // Data Handlers (same as before but with better error handling)
         function handleHeartRateData(event) {
-            const value = event.target.value;
-            const heartRate = value.getUint8(1);
-            
-            updateHRMMetrics({
-                heartRate: heartRate,
-                source: 'bluetooth'
-            });
-            
-            log(`❤️ HR: ${heartRate} BPM`);
+            try {
+                const value = event.target.value;
+                const heartRate = value.getUint8(1);
+                
+                updateHRMMetrics({
+                    heartRate: heartRate,
+                    source: 'bluetooth'
+                });
+                
+                log(`❤️ HR: ${heartRate} BPM`);
+            } catch (error) {
+                log(`❌ Error parsing heart rate data: ${error.message}`);
+            }
         }
 
         function handlePowerData(event) {
-            const value = event.target.value;
-            const flags = value.getUint16(0, true);
-            const power = value.getUint16(2, true);
-            
-            // Extract cadence if available
-            let cadence = 0;
-            if (flags & 0x20 && value.byteLength >= 6) { // Crank Revolution Data Present
-                cadence = value.getUint8(5); // Simplified cadence extraction
+            try {
+                const value = event.target.value;
+                const flags = value.getUint16(0, true);
+                const power = value.getUint16(2, true);
+                
+                let cadence = 0;
+                if (flags & 0x20 && value.byteLength >= 6) {
+                    cadence = value.getUint8(5);
+                }
+                
+                updateTrainerMetrics({
+                    power: power,
+                    cadence: cadence,
+                    speed: (power / 10).toFixed(1),
+                    resistance: Math.round(power / 20),
+                    source: 'bluetooth'
+                });
+                
+                log(`⚡ Power: ${power}W, Cadence: ${cadence}RPM`);
+            } catch (error) {
+                log(`❌ Error parsing power data: ${error.message}`);
             }
-            
-            updateTrainerMetrics({
-                power: power,
-                cadence: cadence,
-                speed: (power / 10).toFixed(1),
-                resistance: Math.round(power / 20),
-                source: 'bluetooth'
-            });
-            
-            log(`⚡ Power: ${power}W, Cadence: ${cadence}RPM`);
+        }
+
+        function handleTrainerData(event) {
+            try {
+                const value = event.target.value;
+                const flags = value.getUint16(0, true);
+                let offset = 2;
+                
+                let power = 0, cadence = 0, speed = 0, resistance = 0;
+                
+                if (flags & 0x01) {
+                    speed = value.getUint16(offset, true) / 100;
+                    offset += 2;
+                }
+                
+                if (flags & 0x08) {
+                    cadence = value.getUint16(offset, true) / 2;
+                    offset += 2;
+                }
+                
+                if (flags & 0x40) {
+                    power = value.getInt16(offset, true);
+                    offset += 2;
+                }
+                
+                if (flags & 0x200) {
+                    resistance = value.getInt16(offset, true);
+                }
+                
+                updateTrainerMetrics({
+                    power: power,
+                    cadence: cadence,
+                    speed: speed.toFixed(1),
+                    resistance: resistance,
+                    source: 'trainer'
+                });
+                
+                log(`🚴 Trainer: ${power}W, ${cadence}RPM, ${speed.toFixed(1)}km/h`);
+            } catch (error) {
+                log(`❌ Error parsing trainer data: ${error.message}`);
+            }
         }
 
         function handleSpeedCadenceData(event) {
-            const value = event.target.value;
-            const flags = value.getUint8(0);
-            
-            let cadence = 0, speed = 0;
-            
-            if (flags & 0x01) { // Wheel Revolution Data Present
-                const wheelRevs = value.getUint32(1, true);
-                const wheelTime = value.getUint16(5, true);
-                speed = (wheelRevs * 2.1 * 3.6 / 1000).toFixed(1); // Rough calculation
+            try {
+                const value = event.target.value;
+                const flags = value.getUint8(0);
+                
+                let cadence = 0, speed = 0;
+                
+                if (flags & 0x01) {
+                    const wheelRevs = value.getUint32(1, true);
+                    const wheelTime = value.getUint16(5, true);
+                    speed = (wheelRevs * 2.1 * 3.6 / 1000).toFixed(1);
+                }
+                
+                if (flags & 0x02) {
+                    const crankRevs = value.getUint16(7, true);
+                    cadence = Math.round(crankRevs / 60);
+                }
+                
+                updateTrainerMetrics({
+                    power: 0,
+                    cadence: cadence,
+                    speed: speed,
+                    resistance: 0,
+                    source: 'bluetooth'
+                });
+                
+                log(`🚴 Speed: ${speed}km/h, Cadence: ${cadence}RPM`);
+            } catch (error) {
+                log(`❌ Error parsing speed/cadence data: ${error.message}`);
             }
-            
-            if (flags & 0x02) { // Crank Revolution Data Present
-                const crankRevs = value.getUint16(7, true);
-                const crankTime = value.getUint16(9, true);
-                cadence = Math.round(crankRevs / 60); // Simplified
-            }
-            
-            updateTrainerMetrics({
-                power: 0,
-                cadence: cadence,
-                speed: speed,
-                resistance: 0,
-                source: 'bluetooth'
-            });
-            
-            log(`🚴 Speed: ${speed}km/h, Cadence: ${cadence}RPM`);
         }
 
-        function handleWahooTrainerData(event) {
-            const value = event.target.value;
-            
-            // Parse Wahoo FTMS indoor bike data
-            const flags = value.getUint16(0, true);
-            let offset = 2;
-            
-            let power = 0, cadence = 0, speed = 0, resistance = 0;
-            
-            // More data available (flags indicate which fields are present)
-            if (flags & 0x01) { // More data
-                speed = value.getUint16(offset, true) / 100; // km/h
-                offset += 2;
-            }
-            
-            if (flags & 0x04) { // Average speed
-                offset += 2; // Skip
-            }
-            
-            if (flags & 0x08) { // Instantaneous cadence
-                cadence = value.getUint16(offset, true) / 2;
-                offset += 2;
-            }
-            
-            if (flags & 0x40) { // Instantaneous power
-                power = value.getInt16(offset, true);
-                offset += 2;
-            }
-            
-            if (flags & 0x200) { // Resistance level
-                resistance = value.getInt16(offset, true);
-                offset += 2;
-            }
-            
-            updateTrainerMetrics({
-                power: power,
-                cadence: cadence,
-                speed: speed.toFixed(1),
-                resistance: resistance,
-                source: 'wahoo'
-            });
-            
-            log(`🚴 Wahoo: ${power}W, ${cadence}RPM, ${speed.toFixed(1)}km/h, ${resistance}% resistance`);
-        }
-
-        function processANTData(data) {
-            // Process USB ANT+ data (same as previous implementation)
-            const hexData = Array.from(data).map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
-            log(`📥 ANT+ RX: ${hexData}`);
-            
-            // Parse ANT+ messages and extract data
-            // (Implementation similar to previous receiver)
-        }
-
-        // UI Update Functions
+        // UI Update Functions (same as before)
         function updateTrainerMetrics(data) {
             document.getElementById('power-value').textContent = data.power || '---';
             document.getElementById('cadence-value').textContent = data.cadence || '---';
             document.getElementById('speed-value').textContent = data.speed || '---';
             document.getElementById('resistance-value').textContent = data.resistance || '---';
             
-            // Calculate distance and time
-            if (!sessionData.trainer.startTime) {
+            if (!sessionData.trainer.startTime && data.power > 0) {
                 sessionData.trainer.startTime = Date.now();
             }
             
-            const elapsedTime = Date.now() - sessionData.trainer.startTime;
-            const speedKmh = parseFloat(data.speed) || 0;
-            sessionData.trainer.distance += speedKmh * (1000 / 3600000); // 1 second interval
-            
-            document.getElementById('distance-value').textContent = sessionData.trainer.distance.toFixed(2);
-            document.getElementById('time-value').textContent = formatTime(elapsedTime);
+            if (sessionData.trainer.startTime) {
+                const elapsedTime = Date.now() - sessionData.trainer.startTime;
+                const speedKmh = parseFloat(data.speed) || 0;
+                sessionData.trainer.distance += speedKmh * (1000 / 3600000);
+                
+                document.getElementById('distance-value').textContent = sessionData.trainer.distance.toFixed(2);
+                document.getElementById('time-value').textContent = formatTime(elapsedTime);
+            }
             
             updateDeviceStatus('trainer', 'receiving');
             animateMetricUpdate('power-metric');
@@ -975,7 +1197,6 @@
         function updateHRMMetrics(data) {
             document.getElementById('hr-value').textContent = data.heartRate;
             
-            // Calculate running average
             sessionData.hrm.hrHistory.push(data.heartRate);
             if (sessionData.hrm.hrHistory.length > 20) {
                 sessionData.hrm.hrHistory.shift();
@@ -1093,7 +1314,7 @@
             document.getElementById('log-content').textContent = '';
         }
 
-        // Initialize
+        // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             detectPlatform();
             updateDeviceStatus('trainer', 'inactive');
@@ -1102,24 +1323,55 @@
             log('🚀 Cross-platform ANT+ receiver initialized');
             log(`📱 Platform: ${platform.name}`);
             
+            // Additional Android-specific logging
+            if (platform.isAndroid) {
+                log('📱 Android detected - make sure you\'re using Chrome browser');
+                log('🔐 HTTPS and location permissions required for Bluetooth');
+            }
+            
             // Monitor for device disconnections
             if (platform.hasWebBluetooth) {
-                navigator.bluetooth.addEventListener('advertisementreceived', (event) => {
-                    log(`📡 Advertisement from ${event.device.name}: ${event.rssi} dBm`);
+                // Handle disconnect events
+                document.addEventListener('bluetoothdevicedisconnected', (event) => {
+                    log('⚠️ Bluetooth device disconnected');
+                    updateConnectionStatus('Device disconnected', 'error');
+                    currentConnection = null;
                 });
             }
         });
 
-        // Monitor connection status
+        // Improved connection monitoring
         setInterval(() => {
             if (currentConnection && currentConnection.type === 'bluetooth') {
                 if (!currentConnection.device.gatt.connected) {
                     log('⚠️ Bluetooth device disconnected');
                     updateConnectionStatus('Device disconnected', 'error');
+                    updateDeviceStatus('trainer', 'inactive');
+                    updateDeviceStatus('hrm', 'inactive');
                     currentConnection = null;
                 }
             }
         }, 5000);
+
+        // Handle visibility change (Android background behavior)
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                log('📱 App moved to background');
+            } else {
+                log('📱 App brought to foreground');
+                // Recheck connection status
+                if (currentConnection && currentConnection.type === 'bluetooth' && !currentConnection.device.gatt.connected) {
+                    log('🔄 Attempting to reconnect...');
+                    currentConnection.device.gatt.connect().then(() => {
+                        log('✅ Reconnected successfully');
+                        updateConnectionStatus(`Reconnected to ${currentConnection.device.name}`, 'success');
+                        startBluetoothMonitoring();
+                    }).catch(error => {
+                        log(`❌ Reconnection failed: ${error.message}`);
+                    });
+                }
+            }
+        });
     </script>
 </body>
 </html>
