@@ -1105,6 +1105,7 @@
             
             try {
                 const server = currentConnection.server;
+                const deviceName = currentConnection.device.name || '';
                 
                 // Monitor Heart Rate
                 try {
@@ -1139,15 +1140,54 @@
                     log('ℹ️ Fitness Equipment service not available');
                 }
                 
-                // Monitor Speed/Cadence
+                // Monitor Speed/Cadence (including Zwift Click button presses)
                 try {
                     const cscService = await server.getPrimaryService('cycling_speed_and_cadence');
                     const cscCharacteristic = await cscService.getCharacteristic('csc_measurement');
                     await cscCharacteristic.startNotifications();
                     cscCharacteristic.addEventListener('characteristicvaluechanged', handleSpeedCadenceData);
                     log('🚴 Speed/Cadence monitoring started');
+                    
+                    // If this is a Zwift Click, also monitor for button presses
+                    if (deviceName.toLowerCase().includes('click')) {
+                        // Try to find Zwift Click specific characteristics
+                        try {
+                            const zwiftService = await server.getPrimaryService('6e40fec1-b5a3-f393-e0a9-e50e24dcca9e');
+                            const zwiftCharacteristic = await zwiftService.getCharacteristic('6e40fec2-b5a3-f393-e0a9-e50e24dcca9e');
+                            await zwiftCharacteristic.startNotifications();
+                            zwiftCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickButton);
+                            log('⚡ Zwift Click button monitoring started');
+                        } catch (e) {
+                            log('ℹ️ Zwift Click button service not available, trying generic button service');
+                            
+                            // Try generic button service
+                            try {
+                                const buttonService = await server.getPrimaryService('00001812-0000-1000-8000-00805f9b34fb'); // HID service
+                                const buttonCharacteristic = await buttonService.getCharacteristic('00002a4d-0000-1000-8000-00805f9b34fb'); // Report characteristic
+                                await buttonCharacteristic.startNotifications();
+                                buttonCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickButton);
+                                log('⚡ Generic button monitoring started for Zwift Click');
+                            } catch (e2) {
+                                log('ℹ️ No button service found, will detect shifts from speed/cadence changes');
+                            }
+                        }
+                    }
                 } catch (e) {
                     log('ℹ️ Speed/Cadence service not available');
+                }
+                
+                // Monitor Custom Services (for specific device features)
+                try {
+                    // Wahoo custom service
+                    if (deviceName.toLowerCase().includes('kickr') || deviceName.toLowerCase().includes('wahoo')) {
+                        const wahooService = await server.getPrimaryService('6e40fec1-b5a3-f393-e0a9-e50e24dcca9e');
+                        const wahooCharacteristic = await wahooService.getCharacteristic('6e40fec2-b5a3-f393-e0a9-e50e24dcca9e');
+                        await wahooCharacteristic.startNotifications();
+                        wahooCharacteristic.addEventListener('characteristicvaluechanged', handleWahooCustomData);
+                        log('🚴 Wahoo custom service monitoring started');
+                    }
+                } catch (e) {
+                    log('ℹ️ Custom device services not available');
                 }
                 
             } catch (error) {
