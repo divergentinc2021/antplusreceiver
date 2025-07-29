@@ -775,19 +775,32 @@
 
         async function setupScanningChannels() {
             try {
-                // Channel 0: FE-C Trainers
-                await setupChannelForScanning(0, ANT_DEVICE_TYPES.FEC_TRAINER, 8192);
+                // Channel 0: Heart Rate Monitors (most common watch broadcast)
+                await setupChannelForScanning(0, ANT_DEVICE_TYPES.HEART_RATE, 8070);
                 await sleep(100);
                 
-                // Channel 1: Heart Rate Monitors  
-                await setupChannelForScanning(1, ANT_DEVICE_TYPES.HEART_RATE, 8070);
+                // Channel 1: FE-C Trainers
+                await setupChannelForScanning(1, ANT_DEVICE_TYPES.FEC_TRAINER, 8192);
                 await sleep(100);
                 
                 // Channel 2: Shifting Systems
                 await setupChannelForScanning(2, ANT_DEVICE_TYPES.SHIFTING, 8192);
                 await sleep(100);
                 
+                // Channel 3: Wildcard channel for any device type
+                await setupWildcardChannel(3);
+                await sleep(100);
+                
+                // Channel 4: Power meters (common on watches)
+                await setupChannelForScanning(4, 0x0B, 8182); // Power meter
+                await sleep(100);
+                
+                // Channel 5: Speed/Cadence (another common watch type)
+                await setupChannelForScanning(5, 0x79, 8086); // Speed/Cadence
+                await sleep(100);
+                
                 log('📡 All scanning channels opened - listening for devices...');
+                log('🔍 Enhanced scanning for watches with wildcard and power detection');
                 
             } catch (error) {
                 log(`❌ Channel setup failed: ${error.message}`);
@@ -818,6 +831,28 @@
             await sleep(50);
         }
 
+        async function setupWildcardChannel(channel) {
+            // Assign channel as receive (slave)
+            await sendANTMessage(ANT_MESSAGE_TYPES.ASSIGN_CHANNEL, [channel, 0x00, 0x00]);
+            await sleep(50);
+
+            // Set channel ID to accept ANY device type (wildcard)
+            await sendANTMessage(ANT_MESSAGE_TYPES.CHANNEL_ID, [channel, 0x00, 0x00, 0x00, 0x00]);
+            await sleep(50);
+
+            // Set channel period (generic)
+            await sendANTMessage(ANT_MESSAGE_TYPES.CHANNEL_PERIOD, [channel, 0x00, 0x20]);
+            await sleep(50);
+
+            // Set RF frequency (2457 MHz = 57)
+            await sendANTMessage(ANT_MESSAGE_TYPES.CHANNEL_RF_FREQ, [channel, 57]);
+            await sleep(50);
+
+            // Open channel
+            await sendANTMessage(ANT_MESSAGE_TYPES.OPEN_CHANNEL, [channel]);
+            await sleep(50);
+        }
+
         async function stopScanning() {
             isScanning = false;
             document.getElementById('scan-btn').disabled = false;
@@ -825,8 +860,8 @@
             document.getElementById('usb-status-dot').classList.remove('scanning');
             document.getElementById('usb-status-text').textContent = 'ANT+ USB Stick: Connected';
             
-            // Close all channels
-            for (let i = 0; i < 3; i++) {
+            // Close all channels (expanded to 6 channels)
+            for (let i = 0; i < 6; i++) {
                 try {
                     await sendANTMessage(ANT_MESSAGE_TYPES.CLOSE_CHANNEL, [i]);
                     await sleep(50);
@@ -876,6 +911,12 @@
                         
                         if (messageType === ANT_MESSAGE_TYPES.BROADCAST_DATA) {
                             parseBroadcastData(messageData);
+                        } else if (messageType === ANT_MESSAGE_TYPES.CHANNEL_RESPONSE) {
+                            // Log channel responses for debugging
+                            const channel = messageData[0];
+                            const messageId = messageData[1];
+                            const response = messageData[2];
+                            log(`📡 Channel ${channel} Response: MSG ${messageId.toString(16)} = ${response.toString(16)}`);
                         }
                         
                         i += length + 3; // Skip processed message
@@ -891,22 +932,56 @@
             const payload = data.slice(1, 9);
             const dataPage = payload[0];
             
+            // Log all received data for debugging
+            const payloadHex = payload.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+            log(`🔍 CH${channel} Page 0x${dataPage.toString(16).padStart(2, '0')}: ${payloadHex}`);
+            
             // Determine device type based on channel and data page
             let deviceType = null;
-            if (channel === 0 || dataPage === 0x10) {
-                deviceType = 'trainer';
-                parseTrainerData(payload, channel);
-            } else if (channel === 1 || dataPage === 0x00) {
+            let deviceName = 'Unknown';
+            
+            // Heart Rate (most common watch broadcast)
+            if (dataPage === 0x00 || dataPage === 0x01 || dataPage === 0x02 || dataPage === 0x03 || dataPage === 0x04) {
                 deviceType = 'hrm';
+                deviceName = 'Heart Rate Monitor';
                 parseHRMData(payload, channel);
-            } else if (channel === 2 || dataPage === 0x22) {
+            }
+            // Power Meter data pages
+            else if (dataPage === 0x10 || dataPage === 0x11 || dataPage === 0x12 || dataPage === 0x13) {
+                deviceType = 'trainer';
+                deviceName = 'Power Meter';
+                parsePowerMeterData(payload, channel);
+            }
+            // FE-C Trainer
+            else if (dataPage === 0x10 && payload.length >= 8) {
+                deviceType = 'trainer';
+                deviceName = 'FE-C Trainer';
+                parseTrainerData(payload, channel);
+            }
+            // Shifting
+            else if (dataPage === 0x22) {
                 deviceType = 'shifter';
+                deviceName = 'Shifting System';
                 parseShifterData(payload, channel);
+            }
+            // Speed/Cadence
+            else if (dataPage === 0x00 && channel >= 4) {
+                deviceType = 'trainer';
+                deviceName = 'Speed/Cadence Sensor';
+                parseSpeedCadenceData(payload, channel);
+            }
+            // Unknown device - log for analysis
+            else {
+                log(`❓ Unknown device type - Page: 0x${dataPage.toString(16)}, Channel: ${channel}, Data: ${payloadHex}`);
+                // Try to parse as generic data
+                parseGenericData(payload, channel, dataPage);
+                return;
             }
             
             if (deviceType) {
                 updateLastDataTime(deviceType);
                 updateDeviceStatus(deviceType, 'receiving');
+                log(`✅ Detected ${deviceName} on channel ${channel}`);
             }
         }
 
@@ -933,18 +1008,119 @@
         }
 
         function parseHRMData(payload, channel) {
-            if (payload[0] === 0x00) { // Standard HR data page
-                const heartRate = payload[6];
-                const eventCount = payload[4] | (payload[5] << 8);
+            const dataPage = payload[0];
+            
+            // Standard HR data pages
+            if (dataPage === 0x00 || dataPage === 0x01 || dataPage === 0x02 || dataPage === 0x03 || dataPage === 0x04) {
+                let heartRate = 0;
+                let eventCount = 0;
                 
-                updateHRMMetrics({
-                    heartRate: heartRate,
+                if (dataPage === 0x00) {
+                    // Page 0: Basic HR
+                    heartRate = payload[6];
+                    eventCount = payload[4] | (payload[5] << 8);
+                } else if (dataPage === 0x01) {
+                    // Page 1: Cumulative operating time
+                    heartRate = payload[6];
+                    eventCount = payload[4] | (payload[5] << 8);
+                } else if (dataPage === 0x02) {
+                    // Page 2: Manufacturer info
+                    heartRate = payload[6];
+                    eventCount = payload[4] | (payload[5] << 8);
+                } else if (dataPage === 0x03) {
+                    // Page 3: Product info
+                    heartRate = payload[6];
+                    eventCount = payload[4] | (payload[5] << 8);
+                } else if (dataPage === 0x04) {
+                    // Page 4: Previous heart beat info
+                    heartRate = payload[6];
+                    eventCount = payload[4] | (payload[5] << 8);
+                }
+                
+                if (heartRate > 0 && heartRate < 255) {
+                    updateHRMMetrics({
+                        heartRate: heartRate,
+                        channel: channel,
+                        deviceId: `${channel}-${eventCount % 1000}`,
+                        dataPage: dataPage
+                    });
+                    
+                    log(`❤️ HR Data (Page ${dataPage}): ${heartRate} BPM`);
+                }
+            }
+        }
+
+        function parsePowerMeterData(payload, channel) {
+            const dataPage = payload[0];
+            
+            if (dataPage === 0x10) {
+                // Standard Power-Only Main Data Page
+                const eventCount = payload[1];
+                const power = payload[5] | (payload[6] << 8);
+                const cadence = payload[3];
+                
+                updateTrainerMetrics({
+                    power: power,
+                    cadence: cadence,
+                    speed: (power / 10).toFixed(1),
+                    resistance: Math.round(power / 20),
                     channel: channel,
-                    deviceId: `${channel}-${eventCount % 1000}`
+                    deviceId: `PWR-${eventCount % 1000}`
                 });
                 
-                log(`❤️ HR Data: ${heartRate} BPM`);
+                log(`⚡ Power Data: ${power}W, ${cadence}RPM`);
             }
+        }
+
+        function parseSpeedCadenceData(payload, channel) {
+            // Speed/Cadence sensor data
+            const cadenceEventTime = payload[0] | (payload[1] << 8);
+            const cadenceRevCount = payload[2] | (payload[3] << 8);
+            const speedEventTime = payload[4] | (payload[5] << 8);
+            const speedRevCount = payload[6] | (payload[7] << 8);
+            
+            // Calculate cadence and speed (simplified)
+            const cadence = cadenceRevCount % 255; // Simplified
+            const speed = (speedRevCount / 10).toFixed(1); // Simplified
+            
+            updateTrainerMetrics({
+                power: 0,
+                cadence: cadence,
+                speed: speed,
+                resistance: 0,
+                channel: channel,
+                deviceId: `SPD-${channel}`
+            });
+            
+            log(`🚴 Speed/Cadence: ${speed}km/h, ${cadence}RPM`);
+        }
+
+        function parseGenericData(payload, channel, dataPage) {
+            // Try to extract any meaningful data from unknown devices
+            const payloadHex = payload.map(b => b.toString(16).padStart(2, '0').toUpperCase()).join(' ');
+            
+            // Look for patterns that might indicate heart rate (common in watches)
+            for (let i = 0; i < payload.length; i++) {
+                const value = payload[i];
+                if (value >= 40 && value <= 220) {
+                    // Possible heart rate value
+                    log(`💓 Possible HR detected: ${value} BPM at position ${i}`);
+                    
+                    // Try to update as heart rate
+                    updateHRMMetrics({
+                        heartRate: value,
+                        channel: channel,
+                        deviceId: `UNK-${channel}`,
+                        dataPage: dataPage
+                    });
+                    break;
+                }
+            }
+            
+            // Log raw data for manual analysis
+            log(`📊 Raw data analysis - Channel: ${channel}, Page: 0x${dataPage.toString(16)}`);
+            log(`📊 Bytes: ${payloadHex}`);
+            log(`📊 Decimal: ${payload.join(', ')}`);
         }
 
         function parseShifterData(payload, channel) {
