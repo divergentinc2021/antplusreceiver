@@ -499,9 +499,10 @@
             </div>
 
             <!-- Specific device scanning buttons -->
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 15px;">
-                <button class="btn btn-scan" id="scan-hrm-btn" onclick="scanHeartRateMonitors()" disabled>Scan Heart Rate</button>
-                <button class="btn btn-scan" id="scan-trainer-btn" onclick="scanTrainers()" disabled>Scan Trainers</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-top: 15px;">
+                <button class="btn btn-scan" id="scan-kickr-btn" onclick="pairKickr()" disabled>Pair Kickr Core</button>
+                <button class="btn btn-scan" id="scan-zwift-btn" onclick="pairZwiftClick()" disabled>Pair Zwift Click</button>
+                <button class="btn btn-scan" id="scan-hrm-btn" onclick="pairHRM()" disabled>Pair Heart Rate</button>
             </div>
 
             <div id="connection-status" style="margin-top: 15px; padding: 10px; border-radius: 5px; display: none;">
@@ -510,47 +511,126 @@
         </div>
 
         <div class="devices-grid">
-            <!-- Trainer Card -->
-            <div class="device-card trainer" id="trainer-card">
+            <!-- Wahoo Kickr Core Card -->
+            <div class="device-card trainer" id="kickr-card">
                 <div class="device-header">
-                    <div class="device-icon">🚴</div>
+                    <div class="device-icon" style="background: linear-gradient(45deg, #ff6b6b, #ff8e8e);">🚴</div>
                     <div>
-                        <div class="device-title">Fitness Equipment</div>
+                        <div class="device-title">Wahoo Kickr Core</div>
                         <div class="device-status">
-                            <span class="status-indicator" id="trainer-status"></span>
-                            <span id="trainer-status-text">No Signal</span>
+                            <span class="status-indicator" id="kickr-status"></span>
+                            <span id="kickr-status-text">No Signal</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            Device Type: FE-C (0x11) | Channel: 5 | Device ID: <span id="kickr-device-id">12345</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            RF Frequency: <span id="kickr-frequency">2457 MHz</span>
                         </div>
                     </div>
                 </div>
 
                 <div class="metrics">
-                    <div class="metric" id="power-metric">
-                        <div class="metric-value" id="power-value">---</div>
+                    <div class="metric" id="kickr-power-metric">
+                        <div class="metric-value" id="kickr-power-value">---</div>
                         <div class="metric-label">Power (W)</div>
                     </div>
-                    <div class="metric" id="resistance-metric">
-                        <div class="metric-value" id="resistance-value">---</div>
+                    <div class="metric" id="kickr-resistance-metric">
+                        <div class="metric-value" id="kickr-resistance-value">---</div>
                         <div class="metric-label">Resistance (%)</div>
                     </div>
-                    <div class="metric" id="cadence-metric">
-                        <div class="metric-value" id="cadence-value">---</div>
+                    <div class="metric" id="kickr-cadence-metric">
+                        <div class="metric-value" id="kickr-cadence-value">---</div>
                         <div class="metric-label">Cadence (RPM)</div>
                     </div>
-                    <div class="metric" id="speed-metric">
-                        <div class="metric-value" id="speed-value">---</div>
-                        <div class="metric-label">Speed (km/h)</div>
+                    <div class="metric" id="kickr-speed-metric">
+                        <div class="metric-value" id="kickr-speed-value">---</div>
+                        <div class="metric-label">Speed (KM/H)</div>
                     </div>
-                    <div class="metric" id="distance-metric">
-                        <div class="metric-value" id="distance-value">---</div>
-                        <div class="metric-label">Distance (km)</div>
+                    <div class="metric" id="kickr-distance-metric">
+                        <div class="metric-value" id="kickr-distance-value">---</div>
+                        <div class="metric-label">Distance (KM)</div>
                     </div>
-                    <div class="metric" id="time-metric">
-                        <div class="metric-value" id="time-value">---</div>
+                    <div class="metric" id="kickr-time-metric">
+                        <div class="metric-value" id="kickr-time-value">---</div>
                         <div class="metric-label">Time</div>
                     </div>
                 </div>
 
-                <div id="trainer-last-update" style="text-align: center; font-size: 0.8rem; color: #666;">
+                <!-- Kickr Controls -->
+                <div style="margin-top: 15px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <span style="font-weight: 600;">Target Power (W)</span>
+                        <span id="kickr-target-power" style="font-weight: bold; color: #2c3e50;">150</span>
+                    </div>
+                    
+                    <div style="margin-bottom: 15px;">
+                        <label style="font-weight: 600; margin-bottom: 5px; display: block;">Resistance (%)</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <span style="background: #34495e; color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.8rem;">-10%</span>
+                            <input type="range" id="kickr-resistance-slider" min="-10" max="10" value="0" style="flex: 1;" onchange="updateKickrResistance(this.value)">
+                            <span style="background: #34495e; color: white; padding: 2px 8px; border-radius: 3px; font-size: 0.8rem;">+10%</span>
+                        </div>
+                        <div style="text-align: center; margin-top: 5px; font-size: 1.2rem; font-weight: bold;" id="kickr-resistance-display">0</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="btn" style="background: linear-gradient(45deg, #f39c12, #d68910);" onclick="pairKickr()">Pair Device</button>
+                    <button class="btn btn-stop" onclick="stopKickr()">Stop Trainer</button>
+                </div>
+
+                <div id="kickr-last-update" style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">
+                    Waiting for data...
+                </div>
+            </div>
+
+            <!-- Zwift Click Card -->
+            <div class="device-card" id="zwift-click-card" style="background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);">
+                <div class="device-header">
+                    <div class="device-icon" style="background: linear-gradient(45deg, #28a745, #20c997);">⚡</div>
+                    <div>
+                        <div class="device-title">Zwift Click</div>
+                        <div class="device-status">
+                            <span class="status-indicator" id="zwift-status"></span>
+                            <span id="zwift-status-text">No Signal</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            Device Type: Shifting (0x22) | Channel: 5 | Device ID: <span id="zwift-device-id">23456</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            RF Frequency: <span id="zwift-frequency">2457 MHz</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Zwift Click Controls -->
+                <div style="display: flex; justify-content: center; align-items: center; margin: 20px 0;">
+                    <button class="btn" style="background: #6c757d; width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; margin: 0 20px;" onclick="zwiftShiftDown()">-</button>
+                    <div style="text-align: center;">
+                        <div style="font-size: 3rem; font-weight: bold; color: #2c3e50;" id="zwift-gear">4</div>
+                        <div style="font-size: 0.8rem; color: #666;">Current Gear</div>
+                    </div>
+                    <button class="btn" style="background: #6c757d; width: 60px; height: 60px; border-radius: 50%; font-size: 1.5rem; margin: 0 20px;" onclick="zwiftShiftUp()">+</button>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px;">
+                    <div class="metric">
+                        <div class="metric-value" id="zwift-front-gear">50</div>
+                        <div class="metric-label">Front (?)</div>
+                    </div>
+                    <div class="metric">
+                        <div class="metric-value" id="zwift-rear-gear">14</div>
+                        <div class="metric-label">Rear (?)</div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="btn" style="background: linear-gradient(45deg, #f39c12, #d68910);" onclick="pairZwiftClick()">Pair Device</button>
+                    <button class="btn btn-stop" onclick="stopZwiftClick()">Stop Shifter</button>
+                </div>
+
+                <div id="zwift-last-update" style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">
                     Waiting for data...
                 </div>
             </div>
@@ -558,34 +638,52 @@
             <!-- Heart Rate Monitor Card -->
             <div class="device-card hrm" id="hrm-card">
                 <div class="device-header">
-                    <div class="device-icon">❤️</div>
+                    <div class="device-icon" style="background: linear-gradient(45deg, #a8e6cf, #7fcdcd);">❤️</div>
                     <div>
                         <div class="device-title">Heart Rate Monitor</div>
                         <div class="device-status">
                             <span class="status-indicator" id="hrm-status"></span>
                             <span id="hrm-status-text">No Signal</span>
                         </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            Device Type: Heart Rate (0x78) | Channel: 5 | Device ID: <span id="hrm-device-id">34567</span>
+                        </div>
+                        <div style="font-size: 0.7rem; color: #999;">
+                            RF Frequency: <span id="hrm-frequency">2457 MHz</span>
+                        </div>
                     </div>
                 </div>
 
-                <div class="metrics">
-                    <div class="metric" id="hr-metric">
-                        <div class="metric-value" id="hr-value">---</div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;">
+                    <div class="metric" id="hr-current-metric">
+                        <div class="metric-value" id="hr-current-value">---</div>
                         <div class="metric-label">BPM</div>
                     </div>
                     <div class="metric" id="hr-avg-metric">
-                        <div class="metric-value" id="hr-avg">---</div>
+                        <div class="metric-value" id="hr-avg-value">---</div>
                         <div class="metric-label">Avg BPM</div>
-                    </div>
-                    <div class="metric" id="hr-max-metric">
-                        <div class="metric-value" id="hr-max">---</div>
-                        <div class="metric-label">Max BPM</div>
                     </div>
                 </div>
 
                 <div class="hr-zone" id="hr-zone">Zone Unknown</div>
 
-                <div id="hrm-last-update" style="text-align: center; font-size: 0.8rem; color: #666;">
+                <div style="margin: 15px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span style="font-size: 0.8rem;">Base Heart Rate (BPM)</span>
+                        <span style="font-size: 0.8rem;" id="base-hr">65</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                        <span style="font-size: 0.8rem;">Max Heart Rate (BPM)</span>
+                        <span style="font-size: 0.8rem;" id="max-hr">185</span>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <button class="btn" style="background: linear-gradient(45deg, #f39c12, #d68910);" onclick="pairHRM()">Pair Device</button>
+                    <button class="btn btn-stop" onclick="stopHRM()">Stop HRM</button>
+                </div>
+
+                <div id="hrm-last-update" style="text-align: center; font-size: 0.8rem; color: #666; margin-top: 10px;">
                     Waiting for data...
                 </div>
             </div>
@@ -740,8 +838,9 @@
             const bluetoothMethod = document.getElementById('bluetooth-method');
             const usbBtn = document.getElementById('usb-connect-btn');
             const bluetoothBtn = document.getElementById('bluetooth-connect-btn');
+            const scanKickrBtn = document.getElementById('scan-kickr-btn');
+            const scanZwiftBtn = document.getElementById('scan-zwift-btn');
             const scanHrmBtn = document.getElementById('scan-hrm-btn');
-            const scanTrainerBtn = document.getElementById('scan-trainer-btn');
             
             // USB ANT+ Method (not available on Android)
             if (platform.hasWebSerial && !platform.isMobile) {
@@ -768,14 +867,16 @@
             if (bluetoothAvailable) {
                 bluetoothMethod.classList.add('available');
                 bluetoothBtn.disabled = false;
+                scanKickrBtn.disabled = false;
+                scanZwiftBtn.disabled = false;
                 scanHrmBtn.disabled = false;
-                scanTrainerBtn.disabled = false;
                 log('✅ Bluetooth ANT+ connection available');
             } else {
                 bluetoothMethod.classList.add('unavailable');
                 bluetoothBtn.disabled = true;
+                scanKickrBtn.disabled = true;
+                scanZwiftBtn.disabled = true;
                 scanHrmBtn.disabled = true;
-                scanTrainerBtn.disabled = true;
                 
                 if (!platform.hasWebBluetooth) {
                     log('❌ Web Bluetooth API not supported');
@@ -1314,11 +1415,288 @@
             document.getElementById('log-content').textContent = '';
         }
 
+        // Device-specific control functions
+        let zwiftGear = 4;
+        let kickrResistance = 0;
+        let kickrTargetPower = 150;
+
+        // Wahoo Kickr Core Functions
+        function updateKickrResistance(value) {
+            kickrResistance = parseInt(value);
+            document.getElementById('kickr-resistance-display').textContent = value;
+            
+            if (currentConnection && currentConnection.device && currentConnection.device.name && 
+                currentConnection.device.name.toLowerCase().includes('kickr')) {
+                sendKickrResistanceCommand(kickrResistance);
+                log(`🚴 Kickr resistance set to: ${kickrResistance}%`);
+            }
+        }
+
+        async function pairKickr() {
+            if (!checkBluetoothRequirements()) return;
+
+            try {
+                log('🔍 Scanning specifically for Wahoo Kickr Core...');
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: 'KICKR CORE' },
+                        { namePrefix: 'KICKR' },
+                        { namePrefix: 'Wahoo' },
+                        { services: ['fitness_equipment'] },
+                        { services: ['cycling_power'] }
+                    ],
+                    optionalServices: [
+                        'fitness_equipment',
+                        'cycling_power',
+                        'cycling_speed_and_cadence',
+                        'device_information',
+                        '6e40fec1-b5a3-f393-e0a9-e50e24dcca9e' // Wahoo custom service
+                    ]
+                });
+
+                await connectToDevice(device, 'Wahoo Kickr Core');
+                updateDeviceStatus('kickr', 'receiving');
+                
+            } catch (error) {
+                handleBluetoothError(error, 'Wahoo Kickr Core');
+            }
+        }
+
+        function stopKickr() {
+            if (currentConnection && currentConnection.device && 
+                currentConnection.device.name && currentConnection.device.name.toLowerCase().includes('kickr')) {
+                currentConnection.device.gatt.disconnect();
+                updateDeviceStatus('kickr', 'inactive');
+                updateConnectionStatus('Kickr Core disconnected', 'warning');
+                log('🚴 Wahoo Kickr Core disconnected');
+            }
+        }
+
+        function sendKickrResistanceCommand(resistance) {
+            // This would send the actual resistance command to the Kickr
+            // Implementation depends on the specific Wahoo protocol
+            log(`📤 Sending resistance command: ${resistance}%`);
+        }
+
+        // Zwift Click Functions
+        function zwiftShiftUp() {
+            if (zwiftGear < 12) {
+                zwiftGear++;
+                document.getElementById('zwift-gear').textContent = zwiftGear;
+                updateZwiftGearing();
+                log(`⚡ Zwift Click: Shifted up to gear ${zwiftGear}`);
+                
+                if (currentConnection && currentConnection.device && 
+                    currentConnection.device.name && currentConnection.device.name.toLowerCase().includes('click')) {
+                    sendZwiftShiftCommand('up');
+                }
+            }
+        }
+
+        function zwiftShiftDown() {
+            if (zwiftGear > 1) {
+                zwiftGear--;
+                document.getElementById('zwift-gear').textContent = zwiftGear;
+                updateZwiftGearing();
+                log(`⚡ Zwift Click: Shifted down to gear ${zwiftGear}`);
+                
+                if (currentConnection && currentConnection.device && 
+                    currentConnection.device.name && currentConnection.device.name.toLowerCase().includes('click')) {
+                    sendZwiftShiftCommand('down');
+                }
+            }
+        }
+
+        function updateZwiftGearing() {
+            // Simulate front/rear gear calculations based on current gear
+            const gearRatios = [
+                {front: 50, rear: 28}, {front: 50, rear: 25}, {front: 50, rear: 23}, {front: 50, rear: 21},
+                {front: 50, rear: 19}, {front: 50, rear: 17}, {front: 50, rear: 15}, {front: 50, rear: 14},
+                {front: 50, rear: 13}, {front: 50, rear: 12}, {front: 50, rear: 11}, {front: 50, rear: 10}
+            ];
+            
+            if (zwiftGear <= gearRatios.length) {
+                const ratio = gearRatios[zwiftGear - 1];
+                document.getElementById('zwift-front-gear').textContent = ratio.front;
+                document.getElementById('zwift-rear-gear').textContent = ratio.rear;
+            }
+        }
+
+        async function pairZwiftClick() {
+            if (!checkBluetoothRequirements()) return;
+
+            try {
+                log('🔍 Scanning specifically for Zwift Click...');
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { namePrefix: 'Zwift Click' },
+                        { namePrefix: 'CLICK' },
+                        { services: ['cycling_speed_and_cadence'] },
+                        { manufacturerData: [{ companyIdentifier: 0x0347 }] } // Zwift company ID
+                    ],
+                    optionalServices: [
+                        'cycling_speed_and_cadence',
+                        'device_information',
+                        'battery_service'
+                    ]
+                });
+
+                await connectToDevice(device, 'Zwift Click');
+                updateDeviceStatus('zwift', 'receiving');
+                
+            } catch (error) {
+                handleBluetoothError(error, 'Zwift Click');
+            }
+        }
+
+        function stopZwiftClick() {
+            if (currentConnection && currentConnection.device && 
+                currentConnection.device.name && currentConnection.device.name.toLowerCase().includes('click')) {
+                currentConnection.device.gatt.disconnect();
+                updateDeviceStatus('zwift', 'inactive');
+                updateConnectionStatus('Zwift Click disconnected', 'warning');
+                log('⚡ Zwift Click disconnected');
+            }
+        }
+
+        function sendZwiftShiftCommand(direction) {
+            // This would send the actual shift command to the Zwift Click
+            log(`📤 Sending shift command: ${direction}`);
+        }
+
+        // Heart Rate Monitor Functions
+        async function pairHRM() {
+            if (!checkBluetoothRequirements()) return;
+
+            try {
+                log('🔍 Scanning specifically for Heart Rate Monitors...');
+                
+                const device = await navigator.bluetooth.requestDevice({
+                    filters: [
+                        { services: ['heart_rate'] },
+                        { namePrefix: 'Polar' },
+                        { namePrefix: 'Garmin' },
+                        { namePrefix: 'Wahoo' },
+                        { namePrefix: 'TICKR' }
+                    ],
+                    optionalServices: ['device_information', 'battery_service']
+                });
+
+                await connectToDevice(device, 'Heart Rate Monitor');
+                updateDeviceStatus('hrm', 'receiving');
+                
+            } catch (error) {
+                handleBluetoothError(error, 'Heart Rate Monitor');
+            }
+        }
+
+        function stopHRM() {
+            if (currentConnection && currentConnection.type === 'bluetooth') {
+                currentConnection.device.gatt.disconnect();
+                updateDeviceStatus('hrm', 'inactive');
+                updateConnectionStatus('Heart Rate Monitor disconnected', 'warning');
+                log('❤️ Heart Rate Monitor disconnected');
+            }
+        }
+
+        // Enhanced device status update for multiple devices
+        function updateDeviceStatus(deviceType, status) {
+            const statusIndicator = document.getElementById(`${deviceType}-status`);
+            const statusText = document.getElementById(`${deviceType}-status-text`);
+            const card = document.getElementById(`${deviceType}-card`) || 
+                         document.getElementById(`${deviceType === 'trainer' ? 'kickr' : deviceType}-card`);
+            
+            if (!statusIndicator || !statusText) return;
+            
+            switch (status) {
+                case 'receiving':
+                    statusIndicator.className = 'status-indicator status-active';
+                    statusText.textContent = 'Broadcasting';
+                    if (card) card.classList.add('receiving');
+                    break;
+                case 'searching':
+                    statusIndicator.className = 'status-indicator status-searching';
+                    statusText.textContent = 'Searching...';
+                    if (card) card.classList.remove('receiving');
+                    break;
+                default:
+                    statusIndicator.className = 'status-indicator status-inactive';
+                    statusText.textContent = 'No Signal';
+                    if (card) card.classList.remove('receiving');
+                    break;
+            }
+        }
+
+        // Enhanced data handlers for specific devices
+        function updateKickrMetrics(data) {
+            document.getElementById('kickr-power-value').textContent = data.power || '---';
+            document.getElementById('kickr-cadence-value').textContent = data.cadence || '---';
+            document.getElementById('kickr-speed-value').textContent = data.speed || '---';
+            document.getElementById('kickr-resistance-value').textContent = data.resistance || '---';
+            
+            if (!sessionData.trainer.startTime && data.power > 0) {
+                sessionData.trainer.startTime = Date.now();
+            }
+            
+            if (sessionData.trainer.startTime) {
+                const elapsedTime = Date.now() - sessionData.trainer.startTime;
+                const speedKmh = parseFloat(data.speed) || 0;
+                sessionData.trainer.distance += speedKmh * (1000 / 3600000);
+                
+                document.getElementById('kickr-distance-value').textContent = sessionData.trainer.distance.toFixed(2);
+                document.getElementById('kickr-time-value').textContent = formatTime(elapsedTime);
+            }
+            
+            updateDeviceStatus('kickr', 'receiving');
+            animateMetricUpdate('kickr-power-metric');
+            document.getElementById('kickr-last-update').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function updateHRMMetrics(data) {
+            document.getElementById('hr-current-value').textContent = data.heartRate;
+            
+            sessionData.hrm.hrHistory.push(data.heartRate);
+            if (sessionData.hrm.hrHistory.length > 20) {
+                sessionData.hrm.hrHistory.shift();
+            }
+            
+            const avgHR = sessionData.hrm.hrHistory.reduce((a, b) => a + b, 0) / sessionData.hrm.hrHistory.length;
+            document.getElementById('hr-avg-value').textContent = Math.round(avgHR);
+            
+            if (data.heartRate > sessionData.hrm.maxHR) {
+                sessionData.hrm.maxHR = data.heartRate;
+                document.getElementById('max-hr').textContent = sessionData.hrm.maxHR;
+            }
+            
+            updateHRZone(data.heartRate);
+            updateDeviceStatus('hrm', 'receiving');
+            animateMetricUpdate('hr-current-metric');
+            document.getElementById('hrm-last-update').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function updateZwiftClickData(data) {
+            if (data.gear !== undefined) {
+                zwiftGear = data.gear;
+                document.getElementById('zwift-gear').textContent = zwiftGear;
+                updateZwiftGearing();
+            }
+            
+            updateDeviceStatus('zwift', 'receiving');
+            document.getElementById('zwift-last-update').textContent = `Last update: ${new Date().toLocaleTimeString()}`;
+            log(`⚡ Zwift Click gear: ${zwiftGear}`);
+        }
+
         // Initialize on page load
         document.addEventListener('DOMContentLoaded', function() {
             detectPlatform();
-            updateDeviceStatus('trainer', 'inactive');
+            updateDeviceStatus('kickr', 'inactive');
+            updateDeviceStatus('zwift', 'inactive');
             updateDeviceStatus('hrm', 'inactive');
+            
+            // Initialize Zwift Click gear display
+            updateZwiftGearing();
             
             log('🚀 Cross-platform ANT+ receiver initialized');
             log(`📱 Platform: ${platform.name}`);
