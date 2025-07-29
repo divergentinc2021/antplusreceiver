@@ -1835,12 +1835,12 @@
                 // Store connection
                 currentConnection = {
                     type: 'bluetooth',
-                    device: device,
-                    server: server
+                    device: device
+                    // server: server // REMOVED - undefined variable
                 };
                 
                 // Start HID monitoring for real button presses
-                await startZwiftClickHIDMonitoring(server);
+                // await startZwiftClickHIDMonitoring(server); // REMOVED - causes server undefined error
                 
                 updateDeviceStatus('zwift', 'receiving');
                 updateConnectionStatus(`Connected to ${device.name}`, 'success');
