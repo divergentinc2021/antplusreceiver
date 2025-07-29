@@ -1481,22 +1481,20 @@
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [
                         { namePrefix: 'KICKR CORE' },
-                        { namePrefix: 'KICKR' },
-                        { namePrefix: 'Wahoo' },
-                        { services: ['fitness_equipment'] },
-                        { services: ['cycling_power'] }
+                        { namePrefix: 'KICKR' }
                     ],
                     optionalServices: [
                         'fitness_equipment',
                         'cycling_power',
                         'cycling_speed_and_cadence',
                         'device_information',
+                        'battery_service',
                         '6e40fec1-b5a3-f393-e0a9-e50e24dcca9e' // Wahoo custom service
                     ]
                 });
 
-                log(`📱 Found Kickr: ${device.name}`);
-                
+                await connectToDevice(device, 'Wahoo Kickr Core');
+
                 const server = await device.gatt.connect();
                 
                 // Store connection
@@ -1831,10 +1829,9 @@
                     ]
                 });
 
-                log(`📱 Found Zwift Click: ${device.name}`);
-                
-                const server = await device.gatt.connect();
-                
+                await connectToDevice(device, 'Zwift Click');
+                updateDeviceStatus('zwift', 'receiving');
+
                 // Store connection
                 currentConnection = {
                     type: 'bluetooth',
