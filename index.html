@@ -1495,10 +1495,9 @@
                 });
 
                 await connectToDevice(device, 'Wahoo Kickr Core');
+                updateDeviceStatus('kickr', 'receiving');
 
-                const server = await device.gatt.connect();
-                
-                // Store connection
+
                 currentConnection = {
                     type: 'bluetooth',
                     device: device,
