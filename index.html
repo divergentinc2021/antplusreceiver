@@ -1155,7 +1155,7 @@
                             const zwiftService = await server.getPrimaryService('6e40fec1-b5a3-f393-e0a9-e50e24dcca9e');
                             const zwiftCharacteristic = await zwiftService.getCharacteristic('6e40fec2-b5a3-f393-e0a9-e50e24dcca9e');
                             await zwiftCharacteristic.startNotifications();
-                            zwiftCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickButton);
+                            zwiftCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickCustomData);
                             log('⚡ Zwift Click button monitoring started');
                         } catch (e) {
                             log('ℹ️ Zwift Click button service not available, trying generic button service');
@@ -1165,7 +1165,7 @@
                                 const buttonService = await server.getPrimaryService('00001812-0000-1000-8000-00805f9b34fb'); // HID service
                                 const buttonCharacteristic = await buttonService.getCharacteristic('00002a4d-0000-1000-8000-00805f9b34fb'); // Report characteristic
                                 await buttonCharacteristic.startNotifications();
-                                buttonCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickButton);
+                                buttonCharacteristic.addEventListener('characteristicvaluechanged', handleZwiftClickHIDReport);
                                 log('⚡ Generic button monitoring started for Zwift Click');
                             } catch (e2) {
                                 log('ℹ️ No button service found, will detect shifts from speed/cadence changes');
@@ -1481,7 +1481,8 @@
                 const device = await navigator.bluetooth.requestDevice({
                     filters: [
                         { namePrefix: 'KICKR CORE' },
-                        { namePrefix: 'KICKR' }
+                        { namePrefix: 'KICKR' },
+                        { namePrefix: 'Wahoo' }
                     ],
                     optionalServices: [
                         'fitness_equipment',
