@@ -693,7 +693,10 @@
         <div class="log-section">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
                 <h3>📋 Connection Log</h3>
-                <button onclick="clearLog()" style="background: #95a5a6; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Clear</button>
+                <div style="display: flex; gap: 10px;">
+                    <button onclick="captureDeviceSpecs()" style="background: #3498db; color: white; border: none; padding: 5px 15px; border-radius: 3px; cursor: pointer;">📊 Capture Device Specs</button>
+                    <button onclick="clearLog()" style="background: #95a5a6; color: white; border: none; padding: 5px 10px; border-radius: 3px; cursor: pointer;">Clear</button>
+                </div>
             </div>
             <div class="log-content" id="log-content"></div>
         </div>
@@ -1498,14 +1501,10 @@
                 updateDeviceStatus('kickr', 'receiving');
 
 
-                currentConnection = {
-                    type: 'bluetooth',
-                    device: device,
-                    server: server
-                };
+                // The server is now available in currentConnection.server
                 
                 // Start monitoring Kickr-specific services
-                await startKickrMonitoring(server);
+                await startKickrMonitoring(currentConnection.server);
                 
                 updateDeviceStatus('kickr', 'receiving');
                 updateConnectionStatus(`Connected to ${device.name}`, 'success');
@@ -2016,6 +2015,185 @@
                 });
             }
         });
+
+        // Device Specs Capture Functions
+        function captureDeviceSpecs() {
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            
+            // Capture current log content
+            const logContent = document.getElementById('log-content').textContent;
+            
+            // Create device specs data
+            const deviceSpecs = {
+                captureTimestamp: new Date().toISOString(),
+                platform: platform,
+                permissionStatus: permissionStatus,
+                sessionData: sessionData,
+                devices: {
+                    kickrCore: captureKickrSpecs(),
+                    zwiftClick: captureZwiftSpecs(),
+                    heartRateMonitor: captureHRMSpecs()
+                },
+                connectionInfo: currentConnection ? {
+                    type: currentConnection.type,
+                    deviceName: currentConnection.device ? currentConnection.device.name : null,
+                    connected: currentConnection.device ? currentConnection.device.gatt?.connected : false
+                } : null
+            };
+            
+            // Download device specs as JSON
+            downloadJSON(deviceSpecs, `device-specs-${timestamp}.json`);
+            
+            // Download log as markdown
+            downloadMarkdown(logContent, timestamp, deviceSpecs);
+            
+            log('📊 Device specs and logs captured and downloaded');
+        }
+
+        function captureKickrSpecs() {
+            return {
+                deviceId: document.getElementById('kickr-device-id').textContent,
+                frequency: document.getElementById('kickr-frequency').textContent,
+                currentMetrics: {
+                    power: document.getElementById('kickr-power-value').textContent,
+                    resistance: document.getElementById('kickr-resistance-value').textContent,
+                    cadence: document.getElementById('kickr-cadence-value').textContent,
+                    speed: document.getElementById('kickr-speed-value').textContent,
+                    distance: document.getElementById('kickr-distance-value').textContent,
+                    time: document.getElementById('kickr-time-value').textContent
+                },
+                currentSettings: {
+                    targetPower: document.getElementById('kickr-target-power').textContent,
+                    resistanceSlider: document.getElementById('kickr-resistance-slider').value
+                },
+                status: document.getElementById('kickr-status-text').textContent,
+                lastUpdate: document.getElementById('kickr-last-update').textContent,
+                specifications: {
+                    deviceType: "FE-C (0x11)",
+                    channel: 5,
+                    protocol: "ANT+/Bluetooth",
+                    manufacturer: "Wahoo",
+                    model: "Kickr Core"
+                }
+            };
+        }
+
+        function captureZwiftSpecs() {
+            return {
+                deviceId: document.getElementById('zwift-device-id').textContent,
+                frequency: document.getElementById('zwift-frequency').textContent,
+                currentMetrics: {
+                    gear: document.getElementById('zwift-gear').textContent,
+                    frontGear: document.getElementById('zwift-front-gear').textContent,
+                    rearGear: document.getElementById('zwift-rear-gear').textContent
+                },
+                status: document.getElementById('zwift-status-text').textContent,
+                lastUpdate: document.getElementById('zwift-last-update').textContent,
+                specifications: {
+                    deviceType: "Shifting (0x22)",
+                    channel: 5,
+                    protocol: "Bluetooth",
+                    manufacturer: "Zwift",
+                    model: "Click"
+                }
+            };
+        }
+
+        function captureHRMSpecs() {
+            return {
+                deviceId: document.getElementById('hrm-device-id').textContent,
+                frequency: document.getElementById('hrm-frequency').textContent,
+                currentMetrics: {
+                    currentHR: document.getElementById('hr-current-value').textContent,
+                    avgHR: document.getElementById('hr-avg-value').textContent,
+                    baseHR: document.getElementById('base-hr').textContent,
+                    maxHR: document.getElementById('max-hr').textContent
+                },
+                zone: document.getElementById('hr-zone').textContent,
+                status: document.getElementById('hrm-status-text').textContent,
+                lastUpdate: document.getElementById('hrm-last-update').textContent,
+                specifications: {
+                    deviceType: "Heart Rate (0x78)",
+                    channel: 5,
+                    protocol: "ANT+/Bluetooth",
+                    supportedZones: 5
+                }
+            };
+        }
+
+        function downloadJSON(data, filename) {
+            const jsonString = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonString], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function downloadMarkdown(logContent, timestamp, deviceSpecs) {
+            const markdown = `# ANT+ Receiver Session Log
+            
+## Session Information
+- **Timestamp**: ${new Date().toISOString()}
+- **Platform**: ${deviceSpecs.platform.name}
+- **Connection Type**: ${deviceSpecs.connectionInfo ? deviceSpecs.connectionInfo.type : 'None'}
+- **Connected Device**: ${deviceSpecs.connectionInfo ? deviceSpecs.connectionInfo.deviceName : 'None'}
+
+## Device Status Summary
+
+### Wahoo Kickr Core
+- **Status**: ${deviceSpecs.devices.kickrCore.status}
+- **Power**: ${deviceSpecs.devices.kickrCore.currentMetrics.power}W
+- **Cadence**: ${deviceSpecs.devices.kickrCore.currentMetrics.cadence} RPM
+- **Speed**: ${deviceSpecs.devices.kickrCore.currentMetrics.speed} km/h
+- **Distance**: ${deviceSpecs.devices.kickrCore.currentMetrics.distance} km
+- **Target Power**: ${deviceSpecs.devices.kickrCore.currentSettings.targetPower}W
+
+### Zwift Click
+- **Status**: ${deviceSpecs.devices.zwiftClick.status}
+- **Current Gear**: ${deviceSpecs.devices.zwiftClick.currentMetrics.gear}
+- **Front Gear**: ${deviceSpecs.devices.zwiftClick.currentMetrics.frontGear}
+- **Rear Gear**: ${deviceSpecs.devices.zwiftClick.currentMetrics.rearGear}
+
+### Heart Rate Monitor
+- **Status**: ${deviceSpecs.devices.heartRateMonitor.status}
+- **Current HR**: ${deviceSpecs.devices.heartRateMonitor.currentMetrics.currentHR} BPM
+- **Average HR**: ${deviceSpecs.devices.heartRateMonitor.currentMetrics.avgHR} BPM
+- **HR Zone**: ${deviceSpecs.devices.heartRateMonitor.zone}
+
+## Session Metrics
+- **Total Distance**: ${deviceSpecs.sessionData.trainer.distance.toFixed(2)} km
+- **Max Power**: ${deviceSpecs.sessionData.trainer.maxPower}W
+- **Max HR**: ${deviceSpecs.sessionData.hrm.maxHR} BPM
+
+## Connection Log
+\`\`\`
+${logContent}
+\`\`\`
+
+## Platform & Permission Status
+- **Web Bluetooth**: ${deviceSpecs.permissionStatus.webBluetooth ? '✅' : '❌'}
+- **HTTPS**: ${deviceSpecs.permissionStatus.https ? '✅' : '❌'}
+- **Location**: ${deviceSpecs.permissionStatus.location}
+
+---
+*Generated by ANT+ Cross-Platform Receiver on ${timestamp}*
+`;
+
+            const blob = new Blob([markdown], { type: 'text/markdown' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `session-log-${timestamp}.md`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
 
         // Improved connection monitoring
         setInterval(() => {
