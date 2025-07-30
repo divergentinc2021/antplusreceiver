@@ -940,6 +940,234 @@
             }
         }
 
+        // ANT+ Data Processing Function
+        function processANTData(data) {
+            try {
+                const dataArray = new Uint8Array(data);
+                log(`📦 USB ANT+ Data: ${Array.from(dataArray).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                
+                // ANT+ message structure: [SYNC] [LENGTH] [MESG_ID] [DATA...] [CHECKSUM]
+                // SYNC byte is usually 0xA4
+                
+                for (let i = 0; i < dataArray.length; i++) {
+                    if (dataArray[i] === 0xA4 && i + 3 < dataArray.length) {
+                        const length = dataArray[i + 1];
+                        const messageId = dataArray[i + 2];
+                        
+                        if (i + length + 4 <= dataArray.length) {
+                            const messageData = dataArray.slice(i + 3, i + 3 + length);
+                            processANTMessage(messageId, messageData);
+                            i += length + 3; // Skip to after this message
+                        }
+                    }
+                }
+            } catch (error) {
+                log(`❌ Error processing ANT+ data: ${error.message}`);
+            }
+        }
+
+        // Process individual ANT+ messages
+        function processANTMessage(messageId, data) {
+            try {
+                switch (messageId) {
+                    case 0x4E: // Broadcast data
+                        processANTBroadcastData(data);
+                        break;
+                    case 0x40: // Channel event
+                        processANTChannelEvent(data);
+                        break;
+                    case 0x3E: // Channel response
+                        processANTChannelResponse(data);
+                        break;
+                    default:
+                        log(`📡 ANT+ Message ID: 0x${messageId.toString(16)}, Data: ${Array.from(data).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+                }
+            } catch (error) {
+                log(`❌ Error processing ANT+ message: ${error.message}`);
+            }
+        }
+
+        // Process ANT+ broadcast data (actual sensor data)
+        function processANTBroadcastData(data) {
+            if (data.length < 9) return;
+            
+            const channel = data[0];
+            const deviceType = data[8];
+            const deviceId = (data[7] << 8) | data[6];
+            const payload = data.slice(1, 9);
+            
+            log(`📡 Channel: ${channel}, Device Type: 0x${deviceType.toString(16)}, Device ID: ${deviceId}`);
+            
+            switch (deviceType) {
+                case 0x11: // FE-C (Fitness Equipment)
+                    processFECData(payload, deviceId);
+                    break;
+                case 0x78: // Heart Rate
+                    processHeartRateDataANT(payload, deviceId);
+                    break;
+                case 0x0B: // Power Meter
+                    processPowerMeterData(payload, deviceId);
+                    break;
+                case 0x79: // Speed and Cadence
+                    processSpeedCadenceDataANT(payload, deviceId);
+                    break;
+                default:
+                    log(`📡 Unknown device type: 0x${deviceType.toString(16)}`);
+            }
+        }
+
+        // Process ANT+ channel events
+        function processANTChannelEvent(data) {
+            if (data.length < 3) return;
+            
+            const channel = data[0];
+            const messageId = data[1];
+            const messageCode = data[2];
+            
+            switch (messageCode) {
+                case 0x01: // Response no error
+                    log(`✅ ANT+ Channel ${channel}: Command successful`);
+                    break;
+                case 0x15: // Channel in wrong state
+                    log(`⚠️ ANT+ Channel ${channel}: Channel in wrong state`);
+                    break;
+                case 0x28: // Transfer in progress
+                    log(`🔄 ANT+ Channel ${channel}: Transfer in progress`);
+                    break;
+                default:
+                    log(`📡 ANT+ Channel ${channel} Event: 0x${messageCode.toString(16)}`);
+            }
+        }
+
+        // Process ANT+ channel responses
+        function processANTChannelResponse(data) {
+            if (data.length < 3) return;
+            
+            const channel = data[0];
+            const messageId = data[1];
+            const messageCode = data[2];
+            
+            log(`📡 ANT+ Channel ${channel} Response to 0x${messageId.toString(16)}: 0x${messageCode.toString(16)}`);
+        }
+
+        // Process FE-C (Fitness Equipment) data
+        function processFECData(payload, deviceId) {
+            const dataPage = payload[0];
+            
+            switch (dataPage) {
+                case 0x10: // General FE Data
+                    const elapsedTime = payload[1];
+                    const distance = payload[2];
+                    const speed = (payload[5] << 8) | payload[4];
+                    const heartRate = payload[6];
+                    
+                    updateKickrMetrics({
+                        power: 0,
+                        cadence: 0,
+                        speed: (speed * 0.001).toFixed(1),
+                        resistance: 0,
+                        source: 'usb-fec'
+                    });
+                    
+                    if (heartRate > 0) {
+                        updateHRMMetrics({
+                            heartRate: heartRate,
+                            source: 'usb-fec'
+                        });
+                    }
+                    
+                    log(`🚴 FE-C General: Speed=${(speed * 0.001).toFixed(1)}km/h, HR=${heartRate}bpm`);
+                    break;
+                    
+                case 0x19: // Specific Trainer Data
+                    const updateEventCount = payload[1];
+                    const instantCadence = payload[2];
+                    const accumPower = (payload[4] << 8) | payload[3];
+                    const instantPower = (payload[6] << 8) | payload[5];
+                    
+                    updateKickrMetrics({
+                        power: instantPower,
+                        cadence: instantCadence,
+                        speed: 0,
+                        resistance: Math.round(instantPower / 20),
+                        source: 'usb-trainer'
+                    });
+                    
+                    log(`🚴 FE-C Trainer: Power=${instantPower}W, Cadence=${instantCadence}rpm`);
+                    break;
+                    
+                default:
+                    log(`📡 FE-C Data Page 0x${dataPage.toString(16)}: ${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            }
+        }
+
+        // Process Heart Rate data (ANT+ version to avoid naming conflict)
+        function processHeartRateDataANT(payload, deviceId) {
+            const dataPage = payload[0];
+            
+            if (dataPage === 0x00 || dataPage === 0x01 || dataPage === 0x02 || dataPage === 0x03) {
+                // Standard HR data pages
+                const heartRate = payload[7];
+                
+                if (heartRate > 0) {
+                    updateHRMMetrics({
+                        heartRate: heartRate,
+                        source: 'usb-hr'
+                    });
+                    log(`❤️ Heart Rate: ${heartRate} BPM`);
+                }
+            } else {
+                log(`📡 HR Data Page 0x${dataPage.toString(16)}: ${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            }
+        }
+
+        // Process Power Meter data
+        function processPowerMeterData(payload, deviceId) {
+            const dataPage = payload[0];
+            
+            switch (dataPage) {
+                case 0x10: // Standard Power-Only Main Data Page
+                    const updateEventCount = payload[1];
+                    const pedalPower = payload[2];
+                    const instantCadence = payload[3];
+                    const accumPower = (payload[5] << 8) | payload[4];
+                    const instantPower = (payload[7] << 8) | payload[6];
+                    
+                    updateKickrMetrics({
+                        power: instantPower,
+                        cadence: instantCadence,
+                        speed: (instantPower * 0.036).toFixed(1), // Rough speed calculation
+                        resistance: Math.round(instantPower / 20),
+                        source: 'usb-power'
+                    });
+                    
+                    log(`⚡ Power: ${instantPower}W, Cadence: ${instantCadence}rpm`);
+                    break;
+                    
+                default:
+                    log(`📡 Power Data Page 0x${dataPage.toString(16)}: ${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            }
+        }
+
+        // Process Speed and Cadence data (ANT+ version to avoid naming conflict)
+        function processSpeedCadenceDataANT(payload, deviceId) {
+            const dataPage = payload[0];
+            
+            if (dataPage === 0x00) {
+                // Standard Speed and Cadence data
+                const cadenceEventTime = (payload[2] << 8) | payload[1];
+                const cadenceRevCount = (payload[4] << 8) | payload[3];
+                const speedEventTime = (payload[6] << 8) | payload[5];
+                const speedRevCount = (payload[8] << 8) | payload[7];
+                
+                // Calculate actual values would require tracking previous values
+                // For now, just display raw data
+                log(`🚴 Speed/Cadence: Cadence Events=${cadenceRevCount}, Speed Events=${speedRevCount}`);
+            } else {
+                log(`📡 Speed/Cadence Data Page 0x${dataPage.toString(16)}: ${Array.from(payload).map(b => b.toString(16).padStart(2, '0')).join(' ')}`);
+            }
+        }
+
         // Bluetooth Connection with Android-specific handling
         async function connectBluetooth() {
             if (!platform.hasWebBluetooth) {
